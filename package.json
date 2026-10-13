@@ -1,0 +1,17 @@
+{
+    "name": "better-invites",
+    "version": "1.0.0",
+    "private": true,
+    "description": "See invites expiration date, view inviter profile and preview servers before joining by clicking the name",
+    "license": "GPL-3.0-or-later",
+    "scripts": {
+        "build": "node scripts/build.mjs",
+        "typecheck": "tsc --noEmit"
+    },
+    "devDependencies": {
+        "@types/react": "18.2.60",
+        "@types/react-native": "0.72.3",
+        "esbuild": "^0.20.2",
+        "typescript": "^5.8.3"
+    }
+}
