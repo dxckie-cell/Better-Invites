@@ -43,35 +43,59 @@ function preview(guildId: string) {
     }
 }
 
-function showInfo(code: string) {
-    fetch(`https://discord.com/api/v9/invites/${code}?with_counts=true&with_expiration=true`)
+function lookup(code: string): Promise<Invite> {
+    const viaClient = () => {
+        const { invites } = bunny.metro.common;
+        if (typeof invites?.resolveInvite !== "function") throw new Error("client lookup unavailable");
+        return Promise.resolve(invites.resolveInvite(code, "Invite Info")).then((res: any) => {
+            const invite = res?.invite ?? res;
+            if (!invite?.guild) throw new Error("client lookup returned no server");
+            return invite as Invite;
+        });
+    };
+
+    const viaWeb = () => fetch(`https://discord.com/api/v9/invites/${code}?with_counts=true&with_expiration=true`)
         .then(res => {
-            if (!res.ok) throw new Error("not found");
-            return res.json();
+            if (!res.ok) throw new Error(`web lookup status ${res.status}`);
+            return res.json() as Promise<Invite>;
+        });
+
+    return Promise.resolve().then(viaClient).catch((e1: unknown) =>
+        viaWeb().catch((e2: unknown) => {
+            throw new Error(`${String(e1)}\n${String(e2)}`);
         })
-        .then((invite: Invite) => {
-            const { guild, inviter } = invite;
-            const expiry = invite.expires_at
-                ? `${moment(invite.expires_at).fromNow()} (${moment(invite.expires_at).format("lll")})`
-                : "never";
+    );
+}
 
-            const lines = [
-                `Server: ${guild?.name ?? "unknown"}`,
-                `Invited by: ${inviter ? inviter.global_name || inviter.username : "unknown"}`,
-                `Expires: ${expiry}`
-            ];
-            if (invite.approximate_member_count != null) {
-                lines.push(`Members: ${invite.approximate_member_count} (${invite.approximate_presence_count ?? 0} online)`);
-            }
+function describeExpiry(expiresAt?: string | null) {
+    if (!expiresAt) return "never";
+    try {
+        return `${moment(expiresAt).fromNow()} (${moment(expiresAt).format("lll")})`;
+    } catch {
+        return expiresAt;
+    }
+}
 
-            const buttons: Array<{ text: string; onPress?: () => void; }> = [];
-            if (guild?.features?.includes("DISCOVERABLE")) buttons.push({ text: "Preview server", onPress: () => preview(guild.id) });
-            if (inviter) buttons.push({ text: "Inviter profile", onPress: () => openProfile(inviter.id) });
-            buttons.push({ text: "Close" });
+function showInfo(code: string) {
+    lookup(code).then((invite: Invite) => {
+        const { guild, inviter } = invite;
 
-            Alert.alert("Invite info", lines.join("\n"), buttons);
-        })
-        .catch(() => toast("That invite is invalid or expired."));
+        const lines = [
+            `Server: ${guild?.name ?? "unknown"}`,
+            `Invited by: ${inviter ? inviter.global_name || inviter.username : "unknown"}`,
+            `Expires: ${describeExpiry(invite.expires_at)}`
+        ];
+        if (invite.approximate_member_count != null) {
+            lines.push(`Members: ${invite.approximate_member_count} (${invite.approximate_presence_count ?? 0} online)`);
+        }
+
+        const buttons: Array<{ text: string; onPress?: () => void; }> = [];
+        if (guild?.features?.includes("DISCOVERABLE")) buttons.push({ text: "Preview server", onPress: () => preview(guild.id) });
+        if (inviter) buttons.push({ text: "Inviter profile", onPress: () => openProfile(inviter.id) });
+        buttons.push({ text: "Close" });
+
+        Alert.alert("Invite info", lines.join("\n"), buttons);
+    }).catch((e: unknown) => Alert.alert("Invite info", `Couldn't load this invite.\n\n${String(e)}`));
 }
 
 const isRow = (c: any) => c?.props && typeof c.props.onPress === "function"
@@ -98,30 +122,13 @@ function addButtons(tree: any, codes: string[]) {
     )));
 }
 
-const seenKeys = new Set<string>();
-
-function debug(key: unknown, props: any) {
-    if (seenKeys.size >= 4 || seenKeys.has(String(key))) return;
-    seenKeys.add(String(key));
-    const message = props?.message;
-    const text = [
-        `key=${String(key)}`,
-        `props=${Object.keys(props ?? {}).slice(0, 12).join(",")}`,
-        `message=${message ? Object.keys(message).slice(0, 12).join(",") : "none"}`,
-        `content=${typeof message?.content}`
-    ].join("\n");
-    setTimeout(() => Alert.alert("BI debug", text), 800);
-}
-
 let unpatches: Array<() => unknown> = [];
 
 export default {
     onLoad() {
-        toast("BetterInvites v5 loaded");
         const sheet = findByProps("openLazy", "hideActionSheet");
 
         unpatches.push(before("openLazy", sheet, ([component, key, props]: any[]) => {
-            debug(key, props);
             const content: unknown = props?.message?.content;
             if (key !== "MessageLongPressActionSheet" || typeof content !== "string") return;
 
