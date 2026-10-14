@@ -84,18 +84,34 @@ const isInvite = (v: any): v is Invite =>
 const owners = new WeakMap<object, unknown>();
 
 const seen = new Set<string>();
+const lines: string[] = [];
+let timer: ReturnType<typeof setTimeout> | undefined;
+let shown = 0;
+
+function nameOf(Component: any): string {
+    return Component?.displayName || Component?.name || Component?.type?.displayName || Component?.type?.name
+        || Component?.render?.displayName || Component?.render?.name || "anonymous";
+}
 
 function debug([Component, props]: any[]) {
-    if (typeof Component !== "function" || !props || seen.size >= 8) return;
-    const name = Component.displayName || Component.name || "anonymous";
+    if (!Component || !props || shown >= 2 || seen.size >= 14) return;
+    if (typeof Component !== "function" && typeof Component !== "object") return;
+    const name = nameOf(Component);
     const keys = Object.keys(props);
-    const key = keys.find(k => /invite/i.test(k) && props[k] && typeof props[k] === "object");
-    if (!key && !/invite.*(embed|card|message)|(embed|card).*invite/i.test(name)) return;
+    const key = keys.find(k => /invite/i.test(k) && typeof props[k] !== "function");
+    const nameHit = /invite|embed/i.test(name) && !/SearchAndInvite/.test(name);
+    if (!key && !nameHit) return;
     const id = name + key;
     if (seen.has(id)) return;
     seen.add(id);
-    const inner = key && props[key] && typeof props[key] === "object" ? Object.keys(props[key]).slice(0, 14).join(",") : typeof props[key];
-    bunny.ui.toasts.showToast(`BI ${name} | ${keys.slice(0, 8).join(",")} | ${key}: ${inner}`);
+    const v = key ? props[key] : undefined;
+    const inner = v && typeof v === "object" ? Object.keys(v).slice(0, 12).join(",") : String(v).slice(0, 20);
+    lines.push(`${name} [${keys.slice(0, 10).join(",")}] ${key ?? "-"}=${inner}`);
+    timer ??= setTimeout(() => {
+        shown++;
+        bunny.metro.common.ReactNative.Alert.alert("BI debug", lines.splice(0).join("\n\n"));
+        timer = undefined;
+    }, 6000);
 }
 
 function patchEmbed(args: any[], ret: JSX.Element) {
@@ -131,6 +147,8 @@ export default {
         ];
     },
     onUnload() {
+        clearTimeout(timer);
+        timer = undefined;
         unpatches.forEach(unpatch => unpatch());
         unpatches = [];
     }
