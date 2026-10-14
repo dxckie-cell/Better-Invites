@@ -41,7 +41,12 @@ function showAlert(title: string, content: string, actions: Action[] = []) {
 
 function openProfile(userId: string) {
     try {
-        findByProps("showUserProfileActionSheet").showUserProfileActionSheet({ userId });
+        const show = bunny.metro.findByName("showUserProfileActionSheet");
+        const users = findByProps("getUser", "fetchProfile");
+        Promise.resolve(users?.getUser?.(userId))
+            .catch(() => { })
+            .then(() => show({ userId }))
+            .catch(() => toast("Couldn't open that profile."));
     } catch {
         toast("Couldn't open that profile.");
     }
