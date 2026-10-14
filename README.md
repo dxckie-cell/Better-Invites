@@ -1,34 +1,46 @@
 # BetterInvites for Revenge (classic)
 
-Long-press a message that contains a Discord server invite link and tap **Invite info** to see the server, who invited you, when the invite expires, and how many members it has. From there you can open the inviter's profile or preview the server before joining.
+See an invite's expiration date, view the inviter's profile and preview a server before joining, all from the message menu.
 
-Inspired by Equicord's [BetterInvites](https://github.com/Equicord/Equicord/tree/main/src/equicordplugins/betterInvites) (by iamme and thororen). Revenge's mobile client draws invite embeds differently, so this version uses the message menu instead of changing the embed.
+Long-press any message that contains a Discord invite link and tap **Invite info**. A popup shows:
+
+- **Server** name
+- **Invited by**, who created the invite
+- **Expires**, when the invite runs out (or "never")
+- **Members**, total and online counts
+
+The popup also has two buttons:
+
+- **Inviter profile** opens the inviter's profile.
+- **Preview server** opens the server without joining it. It only appears for servers with Discord's Discoverable setting on.
+
+If a message has several invite links (up to 3), each gets its own button.
 
 ## Install
 
-In Revenge, go to Plugins, tap +, and paste:
+In Revenge, go to **Plugins**, tap **+**, and paste:
 
 ```
 https://dxckie-cell.github.io/Better-Invites/
 ```
 
-The GitHub Actions workflow builds and publishes it on every push (repo Settings > Pages > Source: GitHub Actions).
+To update later, tap the info icon on the plugin, choose **Refetch**, then restart Discord.
 
-## Build locally
+## How it works
+
+- Details are looked up through the Discord client, with Discord's public invite API as a fallback.
+- Preview joins the server as a lurker (viewing only, no membership) and opens it. Use the back arrow to leave.
+- Invite embeds look different on mobile, so this port adds a button to the message menu instead of changing the embed like the desktop version does.
+
+## Build
 
 ```
 npm install
 npm run build
 ```
 
-Output goes to `dist/` as `manifest.json` and `index.js`.
+Output goes to `dist/`. Pushing to `main` builds and publishes it with GitHub Actions (Settings > Pages > Source: GitHub Actions).
 
-## Notes
+## Credits and license
 
-Invite details are looked up through the Discord client first, with Discord's public invite lookup as a fallback. If both fail, the popup shows why.
-
-**Preview server** only appears for servers that have Discord's discoverable setting on. It joins the server as a lurker (a preview, without becoming a member) and opens it.
-
-## License
-
-GPL-3.0-or-later, same as the original plugin.
+Based on Equicord's [BetterInvites](https://github.com/Equicord/Equicord/tree/main/src/equicordplugins/betterInvites) by iamme and thororen. GPL-3.0-or-later.
