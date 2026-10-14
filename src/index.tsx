@@ -83,7 +83,24 @@ const isInvite = (v: any): v is Invite =>
 
 const owners = new WeakMap<object, unknown>();
 
-function patchEmbed([Component, props]: any[], ret: JSX.Element) {
+const seen = new Set<string>();
+
+function debug([Component, props]: any[]) {
+    if (typeof Component !== "function" || !props || seen.size >= 6) return;
+    const name = Component.displayName || Component.name || "anonymous";
+    const keys = Object.keys(props);
+    const key = keys.find(k => /invite/i.test(k));
+    if (!key && !/invite/i.test(name)) return;
+    const id = name + key;
+    if (seen.has(id)) return;
+    seen.add(id);
+    const inner = key && props[key] && typeof props[key] === "object" ? Object.keys(props[key]).slice(0, 14).join(",") : typeof props[key];
+    bunny.ui.toasts.showToast(`BI ${name} | ${keys.slice(0, 8).join(",")} | ${key}: ${inner}`);
+}
+
+function patchEmbed(args: any[], ret: JSX.Element) {
+    try { debug(args); } catch { }
+    const [Component, props] = args;
     if (typeof Component !== "function" || !props || !ret || typeof ret !== "object") return;
 
     for (const key of Object.keys(props)) {
@@ -107,6 +124,7 @@ let unpatches: Array<() => unknown> = [];
 
 export default {
     onLoad() {
+        bunny.ui.toasts.showToast("BetterInvites loaded");
         const runtime = findByProps("jsx", "jsxs");
         unpatches = [
             bunny.api.patcher.after("jsx", runtime, patchEmbed),
