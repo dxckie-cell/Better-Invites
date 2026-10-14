@@ -93,17 +93,20 @@ function nameOf(Component: any): string {
         || Component?.render?.displayName || Component?.render?.name || "anonymous";
 }
 
-const isJoin = (c: unknown) => (typeof c === "string" ? c : Array.isArray(c) ? c.find(x => typeof x === "string") : "") === "Join";
+const isJoin = (props: any) => Object.keys(props).some(k => {
+    const v = props[k];
+    return v === "Join" || (Array.isArray(v) && v.includes("Join"));
+});
 
 function debug([Component, props]: any[]) {
-    if (!props || shown >= 2 || seen.size >= 3 || !isJoin(props.children)) return;
+    if (!props || shown >= 2 || seen.size >= 3 || !isJoin(props)) return;
     const stack = String(new Error().stack).split("\n").slice(1, 14)
         .map(l => l.trim().replace(/^at /, "").replace(/\(.*\)/, "").slice(0, 40))
         .filter(l => l && !/^(jsx|jsxs|patchEmbed|debug|anonymous|apply|call)\b/.test(l));
     const id = stack.join("|");
     if (seen.has(id)) return;
     seen.add(id);
-    lines.push(`${nameOf(Component)}: ${stack.join(" < ")}`);
+    lines.push(`${nameOf(Component)} [${Object.keys(props).slice(0, 10).join(",")}]: ${stack.join(" < ")}`);
     timer ??= setTimeout(() => {
         shown++;
         bunny.metro.common.ReactNative.Alert.alert("BI debug", lines.splice(0).join("\n\n"));
