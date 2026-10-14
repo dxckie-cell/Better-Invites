@@ -117,6 +117,7 @@ let unpatches: Array<() => unknown> = [];
 
 export default {
     onLoad() {
+        toast("BetterInvites v5 loaded");
         const sheet = findByProps("openLazy", "hideActionSheet");
 
         unpatches.push(before("openLazy", sheet, ([component, key, props]: any[]) => {
