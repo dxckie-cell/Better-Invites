@@ -93,20 +93,30 @@ function nameOf(Component: any): string {
         || Component?.render?.displayName || Component?.render?.name || "anonymous";
 }
 
+const CODE = /^(nexpy|wvcu5yx37)$/i;
+
+function findCode(v: any, path: string, depth: number): string | undefined {
+    if (typeof v === "string") return CODE.test(v) ? path : undefined;
+    if (depth === 0 || !v || typeof v !== "object") return;
+    for (const k of Object.keys(v).slice(0, 25)) {
+        let child: any;
+        try { child = v[k]; } catch { continue; }
+        if (typeof child === "function") continue;
+        const hit = findCode(child, `${path}.${k}`, depth - 1);
+        if (hit) return hit;
+    }
+}
+
 function debug([Component, props]: any[]) {
-    if (!Component || !props || shown >= 2 || seen.size >= 14) return;
+    if (!Component || !props || shown >= 2 || seen.size >= 8) return;
     if (typeof Component !== "function" && typeof Component !== "object") return;
+    const hit = findCode(props, "props", 3);
+    if (!hit) return;
     const name = nameOf(Component);
-    const keys = Object.keys(props);
-    const key = keys.find(k => /invite/i.test(k) && typeof props[k] !== "function");
-    const nameHit = /invite|embed/i.test(name) && !/SearchAndInvite/.test(name);
-    if (!key && !nameHit) return;
-    const id = name + key;
+    const id = name + hit;
     if (seen.has(id)) return;
     seen.add(id);
-    const v = key ? props[key] : undefined;
-    const inner = v && typeof v === "object" ? Object.keys(v).slice(0, 12).join(",") : String(v).slice(0, 20);
-    lines.push(`${name} [${keys.slice(0, 10).join(",")}] ${key ?? "-"}=${inner}`);
+    lines.push(`${name} [${Object.keys(props).slice(0, 12).join(",")}] ${hit}`);
     timer ??= setTimeout(() => {
         shown++;
         bunny.metro.common.ReactNative.Alert.alert("BI debug", lines.splice(0).join("\n\n"));
