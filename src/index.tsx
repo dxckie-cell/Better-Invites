@@ -43,22 +43,32 @@ function preview(guildId: string) {
     }
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`${label} timed out`)), ms);
+        promise.then(
+            value => { clearTimeout(timer); resolve(value); },
+            error => { clearTimeout(timer); reject(error); }
+        );
+    });
+}
+
 function lookup(code: string): Promise<Invite> {
     const viaClient = () => {
         const { invites } = bunny.metro.common;
         if (typeof invites?.resolveInvite !== "function") throw new Error("client lookup unavailable");
-        return Promise.resolve(invites.resolveInvite(code, "Invite Info")).then((res: any) => {
+        return withTimeout(Promise.resolve(invites.resolveInvite(code, "Invite Info")).then((res: any) => {
             const invite = res?.invite ?? res;
-            if (!invite?.guild) throw new Error("client lookup returned no server");
+            if (!invite?.guild) throw new Error(`client lookup returned no server (${Object.keys(res ?? {}).slice(0, 8).join(",")})`);
             return invite as Invite;
-        });
+        }), 4000, "client lookup");
     };
 
-    const viaWeb = () => fetch(`https://discord.com/api/v9/invites/${code}?with_counts=true&with_expiration=true`)
+    const viaWeb = () => withTimeout(fetch(`https://discord.com/api/v9/invites/${code}?with_counts=true&with_expiration=true`)
         .then(res => {
             if (!res.ok) throw new Error(`web lookup status ${res.status}`);
             return res.json() as Promise<Invite>;
-        });
+        }), 6000, "web lookup");
 
     return Promise.resolve().then(viaClient).catch((e1: unknown) =>
         viaWeb().catch((e2: unknown) => {
@@ -77,6 +87,7 @@ function describeExpiry(expiresAt?: string | null) {
 }
 
 function showInfo(code: string) {
+    toast("Loading invite info...");
     lookup(code).then((invite: Invite) => {
         const { guild, inviter } = invite;
 
