@@ -86,11 +86,11 @@ const owners = new WeakMap<object, unknown>();
 const seen = new Set<string>();
 
 function debug([Component, props]: any[]) {
-    if (typeof Component !== "function" || !props || seen.size >= 6) return;
+    if (typeof Component !== "function" || !props || seen.size >= 8) return;
     const name = Component.displayName || Component.name || "anonymous";
     const keys = Object.keys(props);
-    const key = keys.find(k => /invite/i.test(k));
-    if (!key && !/invite/i.test(name)) return;
+    const key = keys.find(k => /invite/i.test(k) && props[k] && typeof props[k] === "object");
+    if (!key && !/invite.*(embed|card|message)|(embed|card).*invite/i.test(name)) return;
     const id = name + key;
     if (seen.has(id)) return;
     seen.add(id);
@@ -124,7 +124,6 @@ let unpatches: Array<() => unknown> = [];
 
 export default {
     onLoad() {
-        bunny.ui.toasts.showToast("BetterInvites loaded");
         const runtime = findByProps("jsx", "jsxs");
         unpatches = [
             bunny.api.patcher.after("jsx", runtime, patchEmbed),
