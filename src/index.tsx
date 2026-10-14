@@ -96,11 +96,11 @@ function patchEmbed(props: any, ret: JSX.Element) {
 
 const callback = (Component: any, ret: JSX.Element) => patchEmbed(ret.props, ret);
 
-export default definePlugin({
-    start() {
+export default {
+    onLoad() {
         EMBED_NAMES.forEach(name => onJsxCreate(name, callback));
     },
-    stop() {
+    onUnload() {
         EMBED_NAMES.forEach(name => deleteJsxCreate(name, callback));
     }
-});
+};

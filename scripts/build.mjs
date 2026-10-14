@@ -1,8 +1,8 @@
 import { build } from "esbuild";
-import { copyFile, mkdir, readFile, writeFile } from "fs/promises";
+import { createHash } from "crypto";
+import { mkdir, readFile, writeFile } from "fs/promises";
 
 const manifest = JSON.parse(await readFile("manifest.json", "utf8"));
-const outDir = `dist/builds/${manifest.id}`;
 
 const globalsShim = {
     name: "bunny-globals",
@@ -17,14 +17,12 @@ const globalsShim = {
     }
 };
 
-await mkdir(outDir, { recursive: true });
-
-await build({
+const result = await build({
     entryPoints: ["src/index.tsx"],
-    outfile: `${outDir}/index.js`,
     bundle: true,
+    write: false,
     format: "iife",
-    globalName: "plugin",
+    globalName: "__plugin",
     target: "es2019",
     jsx: "transform",
     jsxFactory: "React.createElement",
@@ -33,10 +31,11 @@ await build({
     plugins: [globalsShim]
 });
 
-await copyFile("manifest.json", `${outDir}/manifest.json`);
-await writeFile("dist/repo.json", JSON.stringify({
-    $meta: { name: "BetterInvites", description: manifest.display.description },
-    [manifest.id]: { version: manifest.version }
-}, null, 4));
+// The loader evaluates `return <file>`, so the file must be a single expression starting on the first line.
+const code = result.outputFiles[0].text.replace(/^"use strict";\n/, "");
+const js = `(function(){${code}\nreturn __plugin.default || __plugin;})()`;
 
-console.log(`Built ${manifest.id}@${manifest.version} into dist/`);
+await mkdir("dist", { recursive: true });
+await writeFile("dist/index.js", js);
+await writeFile("dist/manifest.json", JSON.stringify({ ...manifest, hash: createHash("sha256").update(js).digest("hex") }, null, 4));
+console.log("Built dist/manifest.json and dist/index.js");

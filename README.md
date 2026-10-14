@@ -12,14 +12,24 @@ Adds a header above invite embeds in chat:
 - When the invite expires (or that it never does).
 - A "Preview server" link for discoverable servers, which lurks the server without joining.
 
-## Build
+## Install
+
+In Revenge, go to Plugins, tap +, and paste:
+
+```
+https://dxckie-cell.github.io/Better-Invites/
+```
+
+The GitHub Actions workflow builds and publishes it on every push (repo Settings > Pages > Source: GitHub Actions).
+
+## Build locally
 
 ```
 npm install
 npm run build
 ```
 
-Output goes to `dist/`: `repo.json` plus `builds/better-invites/{manifest.json,index.js}`. Host `dist/` (GitHub Pages works) and add the URL of `repo.json` in Revenge under Plugins.
+Output goes to `dist/` as `manifest.json` and `index.js`.
 
 ## Notes
 
