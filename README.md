@@ -27,7 +27,7 @@ Output goes to `dist/` as `manifest.json` and `index.js`.
 
 Invite details are looked up through the Discord client first, with Discord's public invite lookup as a fallback. If both fail, the popup shows why.
 
-**Preview server** only appears for servers that have Discord's discoverable setting on. It opens the server through the app's own link handling.
+**Preview server** only appears for servers that have Discord's discoverable setting on. It joins the server as a lurker (a preview, without becoming a member) and opens it.
 
 ## License
 
