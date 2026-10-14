@@ -98,6 +98,21 @@ function addButtons(tree: any, codes: string[]) {
     )));
 }
 
+const seenKeys = new Set<string>();
+
+function debug(key: unknown, props: any) {
+    if (seenKeys.size >= 4 || seenKeys.has(String(key))) return;
+    seenKeys.add(String(key));
+    const message = props?.message;
+    const text = [
+        `key=${String(key)}`,
+        `props=${Object.keys(props ?? {}).slice(0, 12).join(",")}`,
+        `message=${message ? Object.keys(message).slice(0, 12).join(",") : "none"}`,
+        `content=${typeof message?.content}`
+    ].join("\n");
+    setTimeout(() => Alert.alert("BI debug", text), 800);
+}
+
 let unpatches: Array<() => unknown> = [];
 
 export default {
@@ -105,6 +120,7 @@ export default {
         const sheet = findByProps("openLazy", "hideActionSheet");
 
         unpatches.push(before("openLazy", sheet, ([component, key, props]: any[]) => {
+            debug(key, props);
             const content: unknown = props?.message?.content;
             if (key !== "MessageLongPressActionSheet" || typeof content !== "string") return;
 
