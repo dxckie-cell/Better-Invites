@@ -5,7 +5,6 @@
  */
 
 import React from "react";
-import { Alert } from "react-native";
 import moment from "moment";
 
 const { before, after } = bunny.api.patcher;
@@ -24,6 +23,21 @@ interface Invite {
 }
 
 const toast = (text: string) => bunny.ui.toasts.showToast(text, findAssetId("LinkIcon"));
+
+interface Action { text: string; run: () => void; }
+
+function showAlert(title: string, content: string, actions: Action[] = []) {
+    const [primary, secondary] = actions;
+    vendetta.ui.alerts.showConfirmationAlert({
+        title,
+        content,
+        confirmText: primary?.text ?? "Close",
+        onConfirm: primary?.run ?? (() => {}),
+        secondaryConfirmText: secondary?.text,
+        onConfirmSecondary: secondary?.run,
+        cancelText: primary ? "Close" : undefined
+    });
+}
 
 function openProfile(userId: string) {
     try {
@@ -100,13 +114,15 @@ function showInfo(code: string) {
             lines.push(`Members: ${invite.approximate_member_count} (${invite.approximate_presence_count ?? 0} online)`);
         }
 
-        const buttons: Array<{ text: string; onPress?: () => void; }> = [];
-        if (guild?.features?.includes("DISCOVERABLE")) buttons.push({ text: "Preview server", onPress: () => preview(guild.id) });
-        if (inviter) buttons.push({ text: "Inviter profile", onPress: () => openProfile(inviter.id) });
-        buttons.push({ text: "Close" });
+        const actions: Action[] = [];
+        if (guild?.features?.includes("DISCOVERABLE")) actions.push({ text: "Preview server", run: () => preview(guild.id) });
+        if (inviter) actions.push({ text: "Inviter profile", run: () => openProfile(inviter.id) });
 
-        Alert.alert("Invite info", lines.join("\n"), buttons);
-    }).catch((e: unknown) => Alert.alert("Invite info", `Couldn't load this invite.\n\n${String(e)}`));
+        showAlert("Invite info", lines.join("\n"), actions);
+    }).catch((e: unknown) => {
+        toast("Invite lookup failed");
+        showAlert("Invite info", `Couldn't load this invite.\n\n${String(e)}`);
+    });
 }
 
 const isRow = (c: any) => c?.props && typeof c.props.onPress === "function"
