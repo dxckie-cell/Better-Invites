@@ -33,7 +33,7 @@ Output goes to `dist/` as `manifest.json` and `index.js`.
 
 ## Notes
 
-The Discord mobile client is minified differently to desktop, so the invite embed component is located by name (`GuildInviteEmbed`, `InviteEmbed`, `GuildInvite`). If Discord renames it, edit `EMBED_NAMES` in `src/index.tsx`.
+The Discord mobile client is minified differently to desktop, so instead of patching a named component the plugin watches for any component that is given an invite object (with a server and inviter or expiry) and adds the header above it.
 
 ## License
 

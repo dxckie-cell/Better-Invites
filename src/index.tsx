@@ -8,12 +8,8 @@ import React from "react";
 import { Image, Pressable, View } from "react-native";
 import moment from "moment";
 
-const { onJsxCreate, deleteJsxCreate } = bunny.api.react.jsx;
 const { findByProps, findByStoreName } = bunny.metro;
 const { Text } = bunny.metro.common.components;
-
-// Names Discord has used for the invite embed component. The first one that renders wins.
-const EMBED_NAMES = ["GuildInviteEmbed", "InviteEmbed", "GuildInvite"];
 
 interface Inviter {
     id: string;
@@ -82,25 +78,43 @@ function InviteHeader({ invite }: { invite: Invite; }) {
     );
 }
 
-function patchEmbed(props: any, ret: JSX.Element) {
-    const invite: Invite | undefined = props?.invite ?? props?.resolvedInvite;
-    if (!invite || (!invite.inviter && !invite.expires_at)) return;
+const isInvite = (v: any): v is Invite =>
+    v && typeof v === "object" && v.guild && (v.inviter || v.expires_at !== undefined);
 
-    return (
-        <View>
-            <InviteHeader invite={invite} />
-            {ret}
-        </View>
-    );
+const owners = new WeakMap<object, unknown>();
+
+function patchEmbed([Component, props]: any[], ret: JSX.Element) {
+    if (typeof Component !== "function" || !props || !ret || typeof ret !== "object") return;
+
+    for (const key of Object.keys(props)) {
+        if (!/invite/i.test(key) || !isInvite(props[key])) continue;
+
+        const invite = props[key] as Invite;
+        // Only decorate the outermost component that receives this invite, not wrappers inside it.
+        if (!owners.has(invite)) owners.set(invite, Component);
+        if (owners.get(invite) !== Component) return;
+
+        return (
+            <View>
+                <InviteHeader invite={invite} />
+                {ret}
+            </View>
+        );
+    }
 }
 
-const callback = (Component: any, ret: JSX.Element) => patchEmbed(ret.props, ret);
+let unpatches: Array<() => unknown> = [];
 
 export default {
     onLoad() {
-        EMBED_NAMES.forEach(name => onJsxCreate(name, callback));
+        const runtime = findByProps("jsx", "jsxs");
+        unpatches = [
+            bunny.api.patcher.after("jsx", runtime, patchEmbed),
+            bunny.api.patcher.after("jsxs", runtime, patchEmbed)
+        ];
     },
     onUnload() {
-        EMBED_NAMES.forEach(name => deleteJsxCreate(name, callback));
+        unpatches.forEach(unpatch => unpatch());
+        unpatches = [];
     }
 };
