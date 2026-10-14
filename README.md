@@ -25,7 +25,9 @@ Output goes to `dist/` as `manifest.json` and `index.js`.
 
 ## Notes
 
-The invite details come from Discord's public invite lookup, so no login or token is used. Invites that are invalid or expired show an error instead.
+Invite details are looked up through the Discord client first, with Discord's public invite lookup as a fallback. If both fail, the popup shows why.
+
+**Preview server** only appears for servers that have Discord's discoverable setting on. It opens the server through the app's own link handling.
 
 ## License
 

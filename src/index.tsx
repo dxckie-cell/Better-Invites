@@ -53,12 +53,13 @@ function openProfile(userId: string) {
 }
 
 function preview(guildId: string) {
+    const link = `https://discord.com/channels/${guildId}`;
     try {
-        findByProps("joinGuild").joinGuild(guildId, { lurker: true })
-            .then(() => findByProps("transitionToGuild").transitionToGuild(guildId))
-            .catch(() => toast("This server can't be previewed."));
-    } catch {
-        toast("This server can't be previewed.");
+        const { url } = bunny.metro.common;
+        Promise.resolve((url.openDeeplink ?? url.openURL)(link))
+            .catch((e: unknown) => toast(`Couldn't preview: ${String(e).slice(0, 80)}`));
+    } catch (e) {
+        toast(`Couldn't preview: ${String(e).slice(0, 80)}`);
     }
 }
 
