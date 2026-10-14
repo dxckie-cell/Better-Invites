@@ -93,35 +93,22 @@ function nameOf(Component: any): string {
         || Component?.render?.displayName || Component?.render?.name || "anonymous";
 }
 
-const CODE = /^(nexpy|wvcu5yx37)$/i;
-
-function findCode(v: any, path: string, depth: number): string | undefined {
-    if (typeof v === "string") return CODE.test(v) ? path : undefined;
-    if (depth === 0 || !v || typeof v !== "object") return;
-    for (const k of Object.keys(v).slice(0, 25)) {
-        let child: any;
-        try { child = v[k]; } catch { continue; }
-        if (typeof child === "function") continue;
-        const hit = findCode(child, `${path}.${k}`, depth - 1);
-        if (hit) return hit;
-    }
-}
+const isJoin = (c: unknown) => (typeof c === "string" ? c : Array.isArray(c) ? c.find(x => typeof x === "string") : "") === "Join";
 
 function debug([Component, props]: any[]) {
-    if (!Component || !props || shown >= 2 || seen.size >= 8) return;
-    if (typeof Component !== "function" && typeof Component !== "object") return;
-    const hit = findCode(props, "props", 3);
-    if (!hit) return;
-    const name = nameOf(Component);
-    const id = name + hit;
+    if (!props || shown >= 2 || seen.size >= 3 || !isJoin(props.children)) return;
+    const stack = String(new Error().stack).split("\n").slice(1, 14)
+        .map(l => l.trim().replace(/^at /, "").replace(/\(.*\)/, "").slice(0, 40))
+        .filter(l => l && !/^(jsx|jsxs|patchEmbed|debug|anonymous|apply|call)\b/.test(l));
+    const id = stack.join("|");
     if (seen.has(id)) return;
     seen.add(id);
-    lines.push(`${name} [${Object.keys(props).slice(0, 12).join(",")}] ${hit}`);
+    lines.push(`${nameOf(Component)}: ${stack.join(" < ")}`);
     timer ??= setTimeout(() => {
         shown++;
         bunny.metro.common.ReactNative.Alert.alert("BI debug", lines.splice(0).join("\n\n"));
         timer = undefined;
-    }, 6000);
+    }, 2000);
 }
 
 function patchEmbed(args: any[], ret: JSX.Element) {
