@@ -1,154 +1,125 @@
 /*
- * Ported from Equicord's BetterInvites plugin
+ * Inspired by Equicord's BetterInvites plugin
  * Copyright (c) 2024 Vendicated and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 import React from "react";
-import { Image, Pressable, View } from "react-native";
+import { Alert } from "react-native";
 import moment from "moment";
 
-const { findByProps, findByStoreName } = bunny.metro;
-const { Text } = bunny.metro.common.components;
+const { before, after } = bunny.api.patcher;
+const { findByProps } = bunny.metro;
+const { findInReactTree } = bunny.utils;
+const { findAssetId } = bunny.api.assets;
 
-interface Inviter {
-    id: string;
-    avatar?: string | null;
-    global_name?: string | null;
-    username: string;
-}
+const INVITE_LINK = /(?:discord\.gg|discord(?:app)?\.com\/invite)\/([a-zA-Z0-9-]{2,})/gi;
 
 interface Invite {
-    inviter?: Inviter;
     expires_at?: string | null;
-    guild?: { id: string; name: string; features?: string[] };
+    approximate_member_count?: number;
+    approximate_presence_count?: number;
+    inviter?: { id: string; username: string; global_name?: string | null; };
+    guild?: { id: string; name: string; features?: string[]; };
 }
 
+const toast = (text: string) => bunny.ui.toasts.showToast(text, findAssetId("LinkIcon"));
+
 function openProfile(userId: string) {
-    findByProps("showUserProfileActionSheet").showUserProfileActionSheet({ userId });
+    try {
+        findByProps("showUserProfileActionSheet").showUserProfileActionSheet({ userId });
+    } catch {
+        toast("Couldn't open that profile.");
+    }
 }
 
 function preview(guildId: string) {
-    const GuildActions = findByProps("joinGuild");
-    const Navigation = findByProps("transitionToGuild");
-    GuildActions.joinGuild(guildId, { lurker: true })
-        .then(() => Navigation.transitionToGuild(guildId))
-        .catch(() => bunny.ui.toasts.showToast("This server can't be previewed."));
-}
-
-function InviteHeader({ invite }: { invite: Invite; }) {
-    const { inviter, guild, expires_at } = invite;
-    const canPreview = guild?.features?.includes("DISCOVERABLE");
-    const isSelf = inviter?.id === findByStoreName("UserStore").getCurrentUser()?.id;
-    const guildName = guild?.name ?? "this server";
-
-    const sentence = isSelf
-        ? `You sent an invite to join ${guildName}`
-        : `${inviter?.global_name || inviter?.username} invited you to ${guildName}`;
-
-    const expiry = expires_at
-        ? `Expires ${moment(expires_at).fromNow()} (${moment(expires_at).format("lll")})`
-        : "Never expires";
-
-    return (
-        <View style={{ gap: 2, marginBottom: 6 }}>
-            {inviter && (
-                <Pressable
-                    onPress={() => openProfile(inviter.id)}
-                    style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-                >
-                    {inviter.avatar && (
-                        <Image
-                            source={{ uri: `https://cdn.discordapp.com/avatars/${inviter.id}/${inviter.avatar}.png?size=64` }}
-                            style={{ width: 18, height: 18, borderRadius: 9 }}
-                        />
-                    )}
-                    <Text variant="text-sm/medium" color="text-muted" style={{ flexShrink: 1 }}>
-                        {sentence}
-                    </Text>
-                </Pressable>
-            )}
-            <Text variant="text-xs/medium" color="text-muted">{expiry}</Text>
-            {canPreview && (
-                <Pressable onPress={() => preview(guild!.id)}>
-                    <Text variant="text-xs/semibold" color="text-link">Preview server</Text>
-                </Pressable>
-            )}
-        </View>
-    );
-}
-
-const isInvite = (v: any): v is Invite =>
-    v && typeof v === "object" && v.guild && (v.inviter || v.expires_at !== undefined);
-
-const owners = new WeakMap<object, unknown>();
-
-const seen = new Set<string>();
-const lines: string[] = [];
-let timer: ReturnType<typeof setTimeout> | undefined;
-let shown = 0;
-
-function nameOf(Component: any): string {
-    return Component?.displayName || Component?.name || Component?.type?.displayName || Component?.type?.name
-        || Component?.render?.displayName || Component?.render?.name || "anonymous";
-}
-
-const isJoin = (props: any) => Object.keys(props).some(k => {
-    const v = props[k];
-    return v === "Join" || (Array.isArray(v) && v.includes("Join"));
-});
-
-function debug([Component, props]: any[]) {
-    if (!props || shown >= 2 || seen.size >= 3 || !isJoin(props)) return;
-    const stack = String(new Error().stack).split("\n").slice(1, 14)
-        .map(l => l.trim().replace(/^at /, "").replace(/\(.*\)/, "").slice(0, 40))
-        .filter(l => l && !/^(jsx|jsxs|patchEmbed|debug|anonymous|apply|call)\b/.test(l));
-    const id = stack.join("|");
-    if (seen.has(id)) return;
-    seen.add(id);
-    lines.push(`${nameOf(Component)} [${Object.keys(props).slice(0, 10).join(",")}]: ${stack.join(" < ")}`);
-    timer ??= setTimeout(() => {
-        shown++;
-        bunny.metro.common.ReactNative.Alert.alert("BI debug", lines.splice(0).join("\n\n"));
-        timer = undefined;
-    }, 2000);
-}
-
-function patchEmbed(args: any[], ret: JSX.Element) {
-    try { debug(args); } catch { }
-    const [Component, props] = args;
-    if (typeof Component !== "function" || !props || !ret || typeof ret !== "object") return;
-
-    for (const key of Object.keys(props)) {
-        if (!/invite/i.test(key) || !isInvite(props[key])) continue;
-
-        const invite = props[key] as Invite;
-        // Only decorate the outermost component that receives this invite, not wrappers inside it.
-        if (!owners.has(invite)) owners.set(invite, Component);
-        if (owners.get(invite) !== Component) return;
-
-        return (
-            <View>
-                <InviteHeader invite={invite} />
-                {ret}
-            </View>
-        );
+    try {
+        findByProps("joinGuild").joinGuild(guildId, { lurker: true })
+            .then(() => findByProps("transitionToGuild").transitionToGuild(guildId))
+            .catch(() => toast("This server can't be previewed."));
+    } catch {
+        toast("This server can't be previewed.");
     }
+}
+
+function showInfo(code: string) {
+    fetch(`https://discord.com/api/v9/invites/${code}?with_counts=true&with_expiration=true`)
+        .then(res => {
+            if (!res.ok) throw new Error("not found");
+            return res.json();
+        })
+        .then((invite: Invite) => {
+            const { guild, inviter } = invite;
+            const expiry = invite.expires_at
+                ? `${moment(invite.expires_at).fromNow()} (${moment(invite.expires_at).format("lll")})`
+                : "never";
+
+            const lines = [
+                `Server: ${guild?.name ?? "unknown"}`,
+                `Invited by: ${inviter ? inviter.global_name || inviter.username : "unknown"}`,
+                `Expires: ${expiry}`
+            ];
+            if (invite.approximate_member_count != null) {
+                lines.push(`Members: ${invite.approximate_member_count} (${invite.approximate_presence_count ?? 0} online)`);
+            }
+
+            const buttons: Array<{ text: string; onPress?: () => void; }> = [];
+            if (guild?.features?.includes("DISCOVERABLE")) buttons.push({ text: "Preview server", onPress: () => preview(guild.id) });
+            if (inviter) buttons.push({ text: "Inviter profile", onPress: () => openProfile(inviter.id) });
+            buttons.push({ text: "Close" });
+
+            Alert.alert("Invite info", lines.join("\n"), buttons);
+        })
+        .catch(() => toast("That invite is invalid or expired."));
+}
+
+const isRow = (c: any) => c?.props && typeof c.props.onPress === "function"
+    && (typeof c.props.label === "string" || typeof c.props.message === "string");
+
+function addButtons(tree: any, codes: string[]) {
+    const rows = findInReactTree(tree, (x: any) => Array.isArray(x) && x.some(isRow));
+    if (!rows) return toast("BetterInvites couldn't find the message menu.");
+    if (rows.some((r: any) => String(r?.key).startsWith("better-invites-"))) return;
+
+    const { ActionSheetRow, TableRow } = bunny.metro.common.components;
+    const sheet = findByProps("openLazy", "hideActionSheet");
+
+    rows.splice(Math.min(1, rows.length), 0, ...codes.map(code => (
+        <ActionSheetRow
+            key={`better-invites-${code}`}
+            label={codes.length > 1 ? `Invite info (${code})` : "Invite info"}
+            icon={<TableRow.Icon source={findAssetId("LinkIcon")} />}
+            onPress={() => {
+                sheet.hideActionSheet("MessageLongPressActionSheet");
+                showInfo(code);
+            }}
+        />
+    )));
 }
 
 let unpatches: Array<() => unknown> = [];
 
 export default {
     onLoad() {
-        const runtime = findByProps("jsx", "jsxs");
-        unpatches = [
-            bunny.api.patcher.after("jsx", runtime, patchEmbed),
-            bunny.api.patcher.after("jsxs", runtime, patchEmbed)
-        ];
+        const sheet = findByProps("openLazy", "hideActionSheet");
+
+        unpatches.push(before("openLazy", sheet, ([component, key, props]: any[]) => {
+            const content: unknown = props?.message?.content;
+            if (key !== "MessageLongPressActionSheet" || typeof content !== "string") return;
+
+            const codes = [...new Set([...content.matchAll(INVITE_LINK)].map(m => m[1]))].slice(0, 3);
+            if (!codes.length) return;
+
+            component.then((instance: any) => {
+                const unpatch = after("default", instance, (_: unknown, tree: any) => {
+                    React.useEffect(() => () => unpatch(), []);
+                    addButtons(tree, codes);
+                });
+            });
+        }));
     },
     onUnload() {
-        clearTimeout(timer);
-        timer = undefined;
         unpatches.forEach(unpatch => unpatch());
         unpatches = [];
     }

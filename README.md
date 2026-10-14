@@ -1,16 +1,8 @@
 # BetterInvites for Revenge (classic)
 
-See invites expiration date, view inviter profile and preview servers before joining by clicking the name.
+Long-press a message that contains a Discord server invite link and tap **Invite info** to see the server, who invited you, when the invite expires, and how many members it has. From there you can open the inviter's profile or preview the server before joining.
 
-A port of Equicord's [BetterInvites](https://github.com/Equicord/Equicord/tree/main/src/equicordplugins/betterInvites) (by iamme and thororen) to the classic Revenge bundle.
-
-## What it does
-
-Adds a header above invite embeds in chat:
-
-- Who invited you, with their avatar. Tap it to open their profile.
-- When the invite expires (or that it never does).
-- A "Preview server" link for discoverable servers, which lurks the server without joining.
+Inspired by Equicord's [BetterInvites](https://github.com/Equicord/Equicord/tree/main/src/equicordplugins/betterInvites) (by iamme and thororen). Revenge's mobile client draws invite embeds differently, so this version uses the message menu instead of changing the embed.
 
 ## Install
 
@@ -33,7 +25,7 @@ Output goes to `dist/` as `manifest.json` and `index.js`.
 
 ## Notes
 
-The Discord mobile client is minified differently to desktop, so instead of patching a named component the plugin watches for any component that is given an invite object (with a server and inviter or expiry) and adds the header above it.
+The invite details come from Discord's public invite lookup, so no login or token is used. Invites that are invalid or expired show an error instead.
 
 ## License
 
