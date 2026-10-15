@@ -2,9 +2,7 @@
     "name": "BetterInvites",
     "description": "See invites expiration date, view inviter profile and preview servers before joining by clicking the name",
     "authors": [
-        { "name": "dxckie-cell" },
-        { "name": "iamme" },
-        { "name": "thororen" }
+        { "name": "dxckie-cell" }
     ],
     "main": "index.js",
     "vendetta": { "icon": "ic_link" }
